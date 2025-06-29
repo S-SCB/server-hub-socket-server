@@ -1,0 +1,22 @@
+{
+  "name": "server-hub-socket-server",
+  "version": "1.0.0",
+  "description": "Socket.io server for Server Hub",
+  "main": "server.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "nodemon server.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "socket.io": "^4.7.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "concurrently": "^9.1.2",
+    "nodemon": "^3.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
