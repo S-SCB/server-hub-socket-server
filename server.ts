@@ -21,11 +21,30 @@ const allowedOrigins = [
 // Create HTTP server with a basic response so Render can detect an open port
 const httpServer = createServer((req, res) => {
   // Set CORS headers
-
   const origin = req.headers.origin || "";
-  if (allowedOrigins.includes(origin)) {
+  
+  // Use the same logic as Socket.io CORS handling
+  let allowOrigin = false;
+  
+  if (!origin) {
+    allowOrigin = true; // allow non-browser clients
+  } else if (allowedOrigins.includes(origin)) {
+    allowOrigin = true;
+  } else {
+    // Allow all *.vercel.app subdomains related to your project
+    const isVercelPreview =
+      origin.endsWith(".vercel.app") &&
+      origin.includes("server-hub-optimised");
+    
+    if (isVercelPreview) {
+      allowOrigin = true;
+    }
+  }
+  
+  if (allowOrigin && origin) {
     res.setHeader("Access-Control-Allow-Origin", origin);
   }
+  
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
