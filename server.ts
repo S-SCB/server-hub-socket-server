@@ -44,11 +44,29 @@ const httpServer = createServer((req, res) => {
 
 const io = new Server(httpServer, {
   cors: {
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // allow non-browser clients
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // Allow all *.vercel.app subdomains related to your project
+      const isVercelPreview =
+        origin.endsWith(".vercel.app") &&
+        origin.includes("server-hub-optimised");
+
+      if (isVercelPreview) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("CORS blocked for: " + origin));
+    },
     methods: ["GET", "POST"],
     credentials: true,
   },
 });
+
 
 io.on("connection", (socket) => {
   console.log("A user connected");
