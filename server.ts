@@ -11,40 +11,11 @@ interface DirectMessage {
   receiverId: string;
   createdAt: string;
 }
-const allowedOrigins = [
-  "http://localhost:3000",
-  "https://server-hub-optimised-ten.vercel.app",
-  "https://server-hub-optimised.vercel.app",
-  "https://server-hub-optimised-s-scbs-projects.vercel.app",
-  "https://server-hub-optimised-git-master-s-scbs-projects.vercel.app"
-];
+
 // Create HTTP server with a basic response so Render can detect an open port
 const httpServer = createServer((req, res) => {
   // Set CORS headers
-  const origin = req.headers.origin || "";
-  
-  // Use the same logic as Socket.io CORS handling
-  let allowOrigin = false;
-  
-  if (!origin) {
-    allowOrigin = true; // allow non-browser clients
-  } else if (allowedOrigins.includes(origin)) {
-    allowOrigin = true;
-  } else {
-    // Allow all *.vercel.app subdomains related to your project
-    const isVercelPreview =
-      origin.endsWith(".vercel.app") &&
-      origin.includes("server-hub-optimised");
-    
-    if (isVercelPreview) {
-      allowOrigin = true;
-    }
-  }
-  
-  if (allowOrigin && origin) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  
+  res.setHeader("Access-Control-Allow-Origin", "https://server-hub-optimised-ten.vercel.app");
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -63,36 +34,18 @@ const httpServer = createServer((req, res) => {
 
 const io = new Server(httpServer, {
   cors: {
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // allow non-browser clients
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      // Allow all *.vercel.app subdomains related to your project
-      const isVercelPreview =
-        origin.endsWith(".vercel.app") &&
-        origin.includes("server-hub-optimised");
-
-      if (isVercelPreview) {
-        return callback(null, true);
-      }
-
-      return callback(new Error("CORS blocked for: " + origin));
-    },
+    origin: "https://server-hub-optimised-ten.vercel.app",
     methods: ["GET", "POST"],
-    credentials: true,
+    credentials: true, // Ensure credentials are allowed
   },
 });
-
 
 io.on("connection", (socket) => {
   console.log("A user connected");
 
   // Extract handshake query parameters properly
-  const userId = (socket.handshake.query.userId as string) || null;
-  const serverId = (socket.handshake.query.serverId as string) || null;
+  const userId = socket.handshake.query.userId as string || null;
+  const serverId = socket.handshake.query.serverId as string || null;
 
   if (userId) {
     socket.join(`user:${userId}`);
@@ -122,17 +75,14 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on(
-    "typing-start",
-    (data: { channelId: string; user: { id: string; name: string } }) => {
-      if (data.channelId && data.user.id) {
-        socket.to(`channel:${data.channelId}`).emit("user-typing", {
-          userId: data.user.id,
-          username: data.user.name,
-        });
-      }
+  socket.on("typing-start", (data: { channelId: string; user: { id: string; name: string } }) => {
+    if (data.channelId && data.user.id) {
+      socket.to(`channel:${data.channelId}`).emit("user-typing", {
+        userId: data.user.id,
+        username: data.user.name,
+      });
     }
-  );
+  });
 
   socket.on("typing-stop", (data: { channelId: string; userId: string }) => {
     if (data.channelId && data.userId) {
@@ -142,29 +92,26 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on(
-    "send-message",
-    (data: {
-      channelId: string;
-      content: string;
-      user: { id: string; name: string; image: string | null };
-      messageId: string;
-    }) => {
-      if (data.channelId && data.messageId && data.user.id) {
-        const message = {
-          id: data.messageId,
-          content: data.content,
-          channelId: data.channelId,
-          userId: data.user.id,
-          user: data.user,
-          createdAt: new Date().toISOString(),
-        };
-
-        io.to(`channel:${data.channelId}`).emit("new-message", message);
-        console.log(`Broadcasting message to channel ${data.channelId}`);
-      }
+  socket.on("send-message", (data: { 
+    channelId: string; 
+    content: string;
+    user: { id: string; name: string; image: string | null };
+    messageId: string;
+  }) => {
+    if (data.channelId && data.messageId && data.user.id) {
+      const message = {
+        id: data.messageId,
+        content: data.content,
+        channelId: data.channelId,
+        userId: data.user.id,
+        user: data.user,
+        createdAt: new Date().toISOString(),
+      };
+    
+      io.to(`channel:${data.channelId}`).emit("new-message", message);
+      console.log(`Broadcasting message to channel ${data.channelId}`);
     }
-  );
+  });
 
   socket.on("disconnect", () => {
     if (userId) {
