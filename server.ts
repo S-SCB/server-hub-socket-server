@@ -14,6 +14,9 @@ interface DirectMessage {
 const allowedOrigins = [
   "http://localhost:3000",
   "https://server-hub-optimised-ten.vercel.app",
+  "https://server-hub-optimised.vercel.app",
+  "https://server-hub-optimised-s-scbs-projects.vercel.app",
+  "https://server-hub-optimised-git-master-s-scbs-projects.vercel.app"
 ];
 // Create HTTP server with a basic response so Render can detect an open port
 const httpServer = createServer((req, res) => {
