@@ -38,6 +38,7 @@ io.on("connection", (socket) => {
     const serverId = socket.handshake.query.serverId || null;
     if (userId) {
         socket.join(`user:${userId}`);
+        console.log(`User ${userId} connected `);
     }
     if (serverId) {
         socket.join(`server:${serverId}`);
@@ -87,6 +88,21 @@ io.on("connection", (socket) => {
             io.to(`channel:${data.channelId}`).emit("new-message", message);
             console.log(`Broadcasting message to channel ${data.channelId}`);
         }
+    });
+    // Handle new notification events
+    socket.on("new-notification", (notification) => {
+        console.log(`Received notification for user ${notification.userId}:`, notification.heading);
+        // Add timestamp if not provided
+        if (!notification.createdAt) {
+            notification.createdAt = new Date();
+        }
+        // Set read status to false by default for new notifications
+        if (notification.read === undefined) {
+            notification.read = false;
+        }
+        // Send to specific user's room
+        io.to(`user:${notification.userId}`).emit("new-notification", notification);
+        console.log(`Notification sent to user ${notification.userId}`);
     });
     socket.on("disconnect", () => {
         if (userId) {
