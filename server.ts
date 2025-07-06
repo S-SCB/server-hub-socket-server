@@ -12,10 +12,23 @@ interface DirectMessage {
   createdAt: string;
 }
 
+interface NotificationPayload {
+  id?: string;
+  userId: string;
+  heading: string;
+  message: string;
+  read?: boolean;
+  link?: string | null;
+  createdAt?: Date;
+}
+
 // Create HTTP server with a basic response so Render can detect an open port
 const httpServer = createServer((req, res) => {
   // Set CORS headers
-  res.setHeader("Access-Control-Allow-Origin", "https://server-hub-optimised-ten.vercel.app");
+  res.setHeader(
+    "Access-Control-Allow-Origin",
+    "https://server-hub-optimised-ten.vercel.app"
+  );
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -44,11 +57,12 @@ io.on("connection", (socket) => {
   console.log("A user connected");
 
   // Extract handshake query parameters properly
-  const userId = socket.handshake.query.userId as string || null;
-  const serverId = socket.handshake.query.serverId as string || null;
+  const userId = (socket.handshake.query.userId as string) || null;
+  const serverId = (socket.handshake.query.serverId as string) || null;
 
   if (userId) {
     socket.join(`user:${userId}`);
+    console.log(`User ${userId} connected `);
   }
 
   if (serverId) {
@@ -75,14 +89,17 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("typing-start", (data: { channelId: string; user: { id: string; name: string } }) => {
-    if (data.channelId && data.user.id) {
-      socket.to(`channel:${data.channelId}`).emit("user-typing", {
-        userId: data.user.id,
-        username: data.user.name,
-      });
+  socket.on(
+    "typing-start",
+    (data: { channelId: string; user: { id: string; name: string } }) => {
+      if (data.channelId && data.user.id) {
+        socket.to(`channel:${data.channelId}`).emit("user-typing", {
+          userId: data.user.id,
+          username: data.user.name,
+        });
+      }
     }
-  });
+  );
 
   socket.on("typing-stop", (data: { channelId: string; userId: string }) => {
     if (data.channelId && data.userId) {
@@ -92,25 +109,51 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("send-message", (data: { 
-    channelId: string; 
-    content: string;
-    user: { id: string; name: string; image: string | null };
-    messageId: string;
-  }) => {
-    if (data.channelId && data.messageId && data.user.id) {
-      const message = {
-        id: data.messageId,
-        content: data.content,
-        channelId: data.channelId,
-        userId: data.user.id,
-        user: data.user,
-        createdAt: new Date().toISOString(),
-      };
-    
-      io.to(`channel:${data.channelId}`).emit("new-message", message);
-      console.log(`Broadcasting message to channel ${data.channelId}`);
+  socket.on(
+    "send-message",
+    (data: {
+      channelId: string;
+      content: string;
+      user: { id: string; name: string; image: string | null };
+      messageId: string;
+    }) => {
+      if (data.channelId && data.messageId && data.user.id) {
+        const message = {
+          id: data.messageId,
+          content: data.content,
+          channelId: data.channelId,
+          userId: data.user.id,
+          user: data.user,
+          createdAt: new Date().toISOString(),
+        };
+
+        io.to(`channel:${data.channelId}`).emit("new-message", message);
+        console.log(`Broadcasting message to channel ${data.channelId}`);
+      }
     }
+  );
+
+  // Handle new notification events
+  socket.on("new-notification", (notification: NotificationPayload) => {
+    console.log(
+      `Received notification for user ${notification.userId}:`,
+      notification.heading
+    );
+
+    // Add timestamp if not provided
+    if (!notification.createdAt) {
+      notification.createdAt = new Date();
+    }
+
+    // Set read status to false by default for new notifications
+    if (notification.read === undefined) {
+      notification.read = false;
+    }
+
+    // Send to specific user's room
+    io.to(`user:${notification.userId}`).emit("new-notification", notification);
+
+    console.log(`Notification sent to user ${notification.userId}`);
   });
 
   socket.on("disconnect", () => {
