@@ -156,6 +156,39 @@ io.on("connection", (socket) => {
     console.log(`Notification sent to user ${notification.userId}`);
   });
 
+  socket.on("server-announcement", async (data: { 
+    serverId: string; 
+    notification: NotificationPayload;
+    members?: Array<{ userId: string }>;
+  }) => {
+    console.log(`Received server announcement notification for server ${data.serverId}:`, data.notification.heading);
+
+    if (data.serverId && data.notification) {
+      // If members array is provided, use it; otherwise broadcast to server room
+      if (data.members && data.members.length > 0) {
+        // Send notification to each individual member
+        for (const member of data.members) {
+          if (member.userId) {
+            io.to(`user:${member.userId}`).emit("new-notification", {
+              ...data.notification,
+              userId: member.userId,
+              createdAt: data.notification.createdAt
+                ? typeof data.notification.createdAt === "string"
+                  ? data.notification.createdAt
+                  : (data.notification.createdAt as Date).toISOString()
+                : new Date().toISOString(),
+            });
+          }
+        }
+        console.log(`Server announcement sent to ${data.members.length} members of server ${data.serverId}`);
+      } else {
+        // Fallback: broadcast to server room (for users currently online in that server)
+        io.to(`server:${data.serverId}`).emit("new-notification", data.notification);
+        console.log(`Server announcement broadcasted to server room ${data.serverId}`);
+      }
+    }
+  });
+
   socket.on("disconnect", () => {
     if (userId) {
       console.log(`User ${userId} disconnected`);
